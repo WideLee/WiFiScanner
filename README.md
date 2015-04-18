@@ -1,0 +1,1 @@
+This is an WiFi Scanner, It only scan WiFi and send probe request while the switch is on.
