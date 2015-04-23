@@ -1,12 +1,14 @@
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="fill_parent"
-    android:layout_height="fill_parent"
-    android:gravity="center"
-    android:orientation="vertical" >
+    android:layout_height="fill_parent" >
 
     <RelativeLayout
+        android:id="@+id/rl_control"
         android:layout_width="wrap_content"
-        android:layout_height="wrap_content" >
+        android:layout_height="wrap_content"
+        android:layout_alignParentBottom="true"
+        android:layout_centerHorizontal="true"
+        android:layout_marginBottom="12dp" >
 
         <TextView
             android:id="@+id/tv_peroid"
@@ -61,8 +63,8 @@
             android:layout_width="100dp"
             android:layout_height="wrap_content"
             android:layout_below="@+id/tv_times"
-            android:layout_marginTop="12dp"
             android:layout_marginLeft="12dp"
+            android:layout_marginTop="12dp"
             android:layout_toRightOf="@id/tv_scan_switch"
             android:gravity="center"
             android:orientation="vertical" >
@@ -74,4 +76,11 @@
         </LinearLayout>
     </RelativeLayout>
 
-</LinearLayout>
+    <com.example.scanwifi.view.mapview.MapView
+        android:id="@+id/mapview"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_above="@id/rl_control"
+        android:layout_marginBottom="16dp" />
+
+</RelativeLayout>
