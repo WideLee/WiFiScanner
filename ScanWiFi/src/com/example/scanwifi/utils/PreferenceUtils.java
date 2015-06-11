@@ -7,7 +7,7 @@ import android.content.SharedPreferences;
 import android.util.Log;
 
 public class PreferenceUtils {
-    public static final String KEY_LANGUAGE = "language";
+    public static final String KEY_CURRENT_MAP = "current_map";
 
     public static final String PREFERENCE_NAME = "setting";
 

@@ -5,8 +5,6 @@ import android.content.Context;
 import android.content.DialogInterface.OnCancelListener;
 import android.content.DialogInterface.OnDismissListener;
 
-import com.example.scanwifi.utils.LanguageAdapter;
-
 public class LoadingDialog {
 
     private ProgressDialog mProgressDialog;
@@ -23,8 +21,7 @@ public class LoadingDialog {
     private void initProgressDialog() {
 	mProgressDialog = new ProgressDialog(mContext,
 		ProgressDialog.STYLE_SPINNER);
-	mProgressDialog.setMessage(LanguageAdapter.getInstance(mContext)
-		.getString("loading"));
+	mProgressDialog.setMessage("Loading...");
 	mProgressDialog.setCanceledOnTouchOutside(false);
 
 	mProgressDialog.setOnDismissListener(mOnDismissListener);

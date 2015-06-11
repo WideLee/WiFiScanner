@@ -1,7 +1,6 @@
 package com.example.scanwifi.view.mapview;
 
 import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
@@ -26,7 +25,6 @@ import android.util.Log;
 import android.view.MotionEvent;
 import android.view.View;
 
-import com.example.scanwifi.object.FloorMap;
 import com.example.scanwifi.object.Position;
 import com.example.scanwifi.utils.ConstantValue;
 import com.example.scanwifi.utils.MathUtil;
@@ -350,8 +348,7 @@ public class MapView extends View {
 	    }
 	    drawMapSymbols(canvas);
 	    if (mMyLocationSymbol != null
-		    && mMyLocationSymbol.getLocation() != null
-		    && mMyLocationSymbol.getLocation().getMap_id() == mFloorId) {
+		    && mMyLocationSymbol.getLocation() != null) {
 		mMyLocationSymbol.draw(canvas, mMapMatrix, mScale);
 	    }
 	} else {
@@ -365,9 +362,7 @@ public class MapView extends View {
 	if (mMapSymbols != null) {
 	    for (int i = 0; i < mMapSymbols.size(); i++) {
 		BaseMapSymbol mapSymbol = mMapSymbols.get(i);
-		if (mFloorId == mapSymbol.getLocation().getMap_id()) {
-		    mapSymbol.draw(canvas, mMapMatrix, mScale);
-		}
+		mapSymbol.draw(canvas, mMapMatrix, mScale);
 	    }
 	}
     }
@@ -398,7 +393,7 @@ public class MapView extends View {
 	    if ((!symbol.isVisible()) || symbol.getThreshold() > mScale)
 		continue;
 	    Position location = symbol.getLocation();
-	    if (location != null && location.getMap_id() == mFloorId) {
+	    if (location != null) {
 		float[] xy = { x, y };
 		xy = transformToMapCoordinate(xy);
 		if (symbol.isPointInClickRect(xy[0], xy[1])
@@ -532,18 +527,7 @@ public class MapView extends View {
 	return mScale;
     }
 
-    public void changeFloor(FloorMap floor) {
-	mFloorId = floor.getInfo().getMap_id();
-	try {
-	    initNewMap(new FileInputStream(floor.getMap_img_path()),
-		    floor.getInit_scale(), floor.getInit_rotation());
-	} catch (FileNotFoundException e) {
-	    e.printStackTrace();
-	}
-
-    }
-
-    private void initNewMap(FileInputStream inputStream, double scale,
+    public void initNewMap(FileInputStream inputStream, double scale,
 	    double rotation) {
 	try {
 	    mMyLocationSymbol.setLocation(null);
@@ -588,7 +572,6 @@ public class MapView extends View {
 	    mMyLocationSymbol.setLocation(location);
 	    centerMyLocation();
 	} else {
-	    mMyLocationSymbol.getLocation().setMap_id(location.getMap_id());
 	    if (mUpdateMyLocationAnimRunnable == null) {
 		mUpdateMyLocationAnimRunnable = new UpdateMyLocationAnimRunnable(
 			location.getX(), location.getY());

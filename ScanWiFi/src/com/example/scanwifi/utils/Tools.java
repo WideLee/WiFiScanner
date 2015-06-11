@@ -45,19 +45,6 @@ public class Tools {
 	return false;
     }
 
-    public static String getExternalAppPath() {
-	if (isExternalStorageWritable()) {
-	    String path = Environment.getExternalStorageDirectory()
-		    .getAbsolutePath() + ConstantValue.EXTERNAL_SD_DIR_NAME;
-	    File file = new File(path);
-	    if (!file.exists()) {
-		file.mkdirs();
-	    }
-	    return path;
-	}
-	return null;
-    }
-
     public static void showKeyBoard(View view) {
 	InputMethodManager imm = (InputMethodManager) BaseApplication
 		.getContext().getSystemService(Context.INPUT_METHOD_SERVICE);

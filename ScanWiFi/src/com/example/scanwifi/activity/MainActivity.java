@@ -1,7 +1,13 @@
 package com.example.scanwifi.activity;
 
-import java.util.List;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 
+import org.json.JSONException;
+import org.json.JSONObject;
+
+import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.content.BroadcastReceiver;
 import android.content.Context;
@@ -23,22 +29,18 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import com.example.scanwifi.R;
-import com.example.scanwifi.R.id;
-import com.example.scanwifi.R.layout;
-import com.example.scanwifi.R.menu;
 import com.example.scanwifi.net.CentralHttpClient;
-import com.example.scanwifi.object.FloorMap;
-import com.example.scanwifi.object.MapInfo;
 import com.example.scanwifi.object.Position;
 import com.example.scanwifi.utils.ConstantValue;
-import com.example.scanwifi.utils.FileUtil;
+import com.example.scanwifi.utils.FileUtils;
 import com.example.scanwifi.utils.HiThread;
-import com.example.scanwifi.utils.JsonParser;
+import com.example.scanwifi.utils.PreferenceUtils;
+import com.example.scanwifi.view.DialogFactory;
 import com.example.scanwifi.view.mapview.MapDecorator;
 import com.example.scanwifi.view.mapview.MapView;
 
 public class MainActivity extends Activity {
-
+    
     private Switch mSwitch;
     private TextView mTextView;
     private int mScanTime;
@@ -47,19 +49,25 @@ public class MainActivity extends Activity {
     private WiFiScanReceiver mWifiScanReceiver;
     private EditText mEditText;
     private int peroid;
+    private String mMacAddr;
 
     private MapDecorator mDecorator;
 
     private SharedPreferences mSharedPreferences;
     private SharedPreferences.Editor mEditor;
 
+    @SuppressLint("HandlerLeak")
     private Handler mHandler = new Handler() {
 	public void handleMessage(Message msg) {
 	    switch (msg.what) {
 	    case ConstantValue.MSG_ACTIVITY_REMOTE_LOCATE_RESULT:
 		mDecorator.updateMyLocation((Position) msg.obj);
 		break;
-
+	    case ConstantValue.MSG_ACTIVITY_LOCAL_CHANGE_MAP:
+		PreferenceUtils.saveStringValue(MainActivity.this,
+			PreferenceUtils.KEY_CURRENT_MAP, msg.obj.toString());
+		initMapView();
+		break;
 	    default:
 		break;
 	    }
@@ -90,24 +98,31 @@ public class MainActivity extends Activity {
 
 	@Override
 	public void run() {
-
 	    while (true) {
-		String result = CentralHttpClient
-			.post(ConstantValue.LOCATION_RESULT_URL);
-		MapInfo info = FileUtil
-			.getCurrentMapInfoFromFile(MainActivity.this);
-		if (result != null && info != null) {
-		    String[] coor = result.replaceAll(" ", "").split(",");
-		    Position loc = new Position(Float.valueOf(coor[0]),
-			    Float.valueOf(coor[1]), info.getMap_id());
-		    Message msg = new Message();
-		    msg.what = ConstantValue.MSG_ACTIVITY_REMOTE_LOCATE_RESULT;
-		    msg.obj = loc;
-		    mHandler.sendMessage(msg);
-		}
 		try {
+
+		    String result = CentralHttpClient
+			    .post(ConstantValue.LOCATION_RESULT_URL
+				    + "?client=" + mMacAddr.replace(":", ""));
+		    if (result != null) {
+			JSONObject object = new JSONObject(result);
+			if (object.getBoolean("success")) {
+			    Position loc = new Position(Float.valueOf(object
+				    .getString("x")), Float.valueOf(object
+				    .getString("y")));
+			    Message msg = new Message();
+			    msg.what = ConstantValue.MSG_ACTIVITY_REMOTE_LOCATE_RESULT;
+			    msg.obj = loc;
+			    mHandler.sendMessage(msg);
+			}
+		    }
+
 		    Thread.sleep(2000);
 		} catch (InterruptedException e) {
+		    e.printStackTrace();
+		} catch (NumberFormatException e) {
+		    e.printStackTrace();
+		} catch (JSONException e) {
 		    e.printStackTrace();
 		}
 	    }
@@ -121,6 +136,7 @@ public class MainActivity extends Activity {
 
 	setContentView(R.layout.activity_main);
 	mWifiManager = (WifiManager) getSystemService(Context.WIFI_SERVICE);
+	mMacAddr = mWifiManager.getConnectionInfo().getMacAddress();
 	mScanning = false;
 	mWifiScanReceiver = new WiFiScanReceiver();
 
@@ -151,6 +167,7 @@ public class MainActivity extends Activity {
 			    peroid = Integer.valueOf(mEditText.getText()
 				    .toString());
 			}
+			timestamp = System.currentTimeMillis();
 			mScanningThread.start();
 			mEditText.setEnabled(false);
 
@@ -177,49 +194,35 @@ public class MainActivity extends Activity {
     }
 
     public void initMapView() {
-	MapInfo info = FileUtil.getCurrentMapInfoFromFile(this);
-	if (info != null) {
-	    long map_id = info.getMap_id();
 
-	    long cur_id = mDecorator.getCurrentMapFloorId();
-	    if (map_id != cur_id) {
-
-		List<FloorMap> maps = mDecorator.getFloorList();
-
-		int index = -1;
-		for (int i = 0; i < maps.size(); i++) {
-		    FloorMap map = maps.get(i);
-		    if (map.getInfo().getMap_id() == info.getMap_id()) {
-			index = i;
-			break;
-		    }
-		}
-
-		FloorMap newMap = null;
-		if (index == -1) {
-		    String json = FileUtil.getMapJsonByID(this,
-			    info.getMap_id());
-		    if (json != null) {
-			newMap = JsonParser.parseMapFloorJson(json);
-			mDecorator.addFloorMap(newMap);
-
-		    }
+	try {
+	    String filename = PreferenceUtils.getStringValue(this,
+		    PreferenceUtils.KEY_CURRENT_MAP);
+	    if (!filename.equals("")) {
+		File file = new File(FileUtils.getAppDir() + filename);
+		if (file.exists()) {
+		    FileInputStream inStream = new FileInputStream(file);
+		    mDecorator.initNewMap(inStream);
 		} else {
-		    newMap = maps.get(index);
+		    Toast.makeText(this, "empty map!", Toast.LENGTH_SHORT)
+			    .show();
 		}
-		if (newMap != null) {
-		    mDecorator.changeFloor(newMap);
-		}
+	    } else {
+		DialogFactory.getInstance(this).getChooseMapDialog(mHandler)
+			.show();
 	    }
+	} catch (FileNotFoundException e) {
+	    e.printStackTrace();
 	}
+
     }
 
     @Override
-    protected void onStart() {
+    protected void onResume() {
 	registerReceiver(mWifiScanReceiver, new IntentFilter(
 		WifiManager.SCAN_RESULTS_AVAILABLE_ACTION));
 	mUpdatePositionThread.start();
-	super.onStart();
+	super.onResume();
     }
 
     @Override
@@ -229,6 +232,8 @@ public class MainActivity extends Activity {
 	super.onStop();
     }
 
+    private long timestamp = 0;
+
     public class WiFiScanReceiver extends BroadcastReceiver {
 
 	public WiFiScanReceiver() {
@@ -237,32 +242,22 @@ public class MainActivity extends Activity {
 	@Override
 	public void onReceive(Context context, Intent intent) {
 	    if (mScanning) {
-		mTextView.setText(Integer.toString(++mScanTime));
+		mTextView
+			.setText(Integer.toString(++mScanTime)
+				+ "  "
+				+ Long.toString(System.currentTimeMillis()
+					- timestamp));
+		timestamp = System.currentTimeMillis();
 	    }
 	}
     }
 
     @Override
     public boolean onMenuItemSelected(int featureId, MenuItem item) {
-	if (item.getItemId() == R.id.action_settings) {
-	    Intent i = new Intent(MainActivity.this, SettingActivity.class);
-	    startActivityForResult(i, ConstantValue.ACTION_UPDATE_DATA);
+	if (item.getItemId() == R.id.action_search) {
+	    DialogFactory.getInstance(this).getChooseMapDialog(mHandler).show();
 	}
 	return super.onMenuItemSelected(featureId, item);
-    }
-
-    @Override
-    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
-	switch (requestCode) {
-	case ConstantValue.ACTION_UPDATE_DATA:
-	    if (resultCode == RESULT_OK) {
-		initMapView();
-	    }
-	    break;
-	default:
-	    break;
-	}
-	super.onActivityResult(requestCode, resultCode, data);
     }
 
     @Override
